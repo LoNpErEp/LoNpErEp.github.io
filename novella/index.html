@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Скрипторий Забытых Имён</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    background: #0a0a0f;
+    color: #d8d0c0;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  #game {
+    position: relative;
+    width: 100%;
+    max-width: 1100px;
+    height: 100vh;
+    margin: 0 auto;
+    overflow: hidden;
+    background: #000;
+  }
+  #background {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    transition: background-image 1.2s ease, filter 1s ease;
+    filter: brightness(0.6) contrast(1.1);
+  }
+  #background::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.85) 100%);
+  }
+  /* Fallback-градиенты для каждой локации */
+  .bg-scriptorium { background: linear-gradient(135deg, #1a1510 0%, #3d2e1f 50%, #0f0a05 100%); }
+  .bg-grey_city   { background: linear-gradient(135deg, #2a2d33 0%, #4a4d55 50%, #10121a 100%); }
+  .bg-cafe        { background: linear-gradient(135deg, #3a2418 0%, #6b4028 50%, #1a0f08 100%); }
+  .bg-hall        { background: linear-gradient(135deg, #1a1a2e 0%, #3d3d5c 50%, #0a0a1a 100%); }
+  .bg-ink_sea     { background: linear-gradient(135deg, #050510 0%, #1a1a3a 50%, #000005 100%); }
+
+  #resonance-bar {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    right: 20px;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(0,0,0,0.55);
+    padding: 10px 16px;
+    border: 1px solid rgba(180,160,120,0.3);
+    border-radius: 4px;
+    backdrop-filter: blur(6px);
+  }
+  #resonance-label {
+    font-size: 13px;
+    letter-spacing: 2px;
+    color: #c8b890;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  #resonance-track {
+    flex: 1;
+    height: 8px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+  }
+  #resonance-fill {
+    height: 100%;
+    width: 50%;
+    background: linear-gradient(90deg, #3a5a8a, #8a5a3a, #8a3a3a);
+    transition: width 0.8s ease;
+    box-shadow: 0 0 10px rgba(180,120,80,0.5);
+  }
+  #resonance-value {
+    font-size: 14px;
+    color: #e0d0a0;
+    min-width: 45px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  #portrait {
+    position: absolute;
+    bottom: 260px;
+    left: 40px;
+    width: 180px;
+    height: 240px;
+    background-size: contain;
+    background-position: center bottom;
+    background-repeat: no-repeat;
+    border: 2px solid rgba(180,160,120,0.4);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.8), 0 0 30px rgba(180,120,80,0.2);
+    border-radius: 4px;
+    opacity: 0;
+    transition: opacity 0.6s ease;
+    z-index: 5;
+  }
+  #portrait.visible { opacity: 1; }
+
+  #dialogue-box {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(to bottom, rgba(10,8,5,0.85), rgba(10,8,5,0.98));
+    border-top: 1px solid rgba(180,160,120,0.4);
+    padding: 24px 40px 30px;
+    min-height: 240px;
+    z-index: 6;
+  }
+  #speaker {
+    font-size: 16px;
+    color: #d4a868;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    text-shadow: 0 0 10px rgba(212,168,104,0.4);
+  }
+  #text {
+    font-size: 18px;
+    line-height: 1.7;
+    color: #e8e0d0;
+    min-height: 80px;
+    margin-bottom: 20px;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+  }
+  #choices {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .choice-btn {
+    background: rgba(30,25,18,0.7);
+    border: 1px solid rgba(180,160,120,0.35);
+    color: #d8d0c0;
+    padding: 12px 20px;
+    font-family: inherit;
+    font-size: 16px;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    border-radius: 3px;
+    position: relative;
+    overflow: hidden;
+  }
+  .choice-btn::before {
+    content: '❧';
+    margin-right: 12px;
+    color: #a08050;
+    opacity: 0.6;
+  }
+  .choice-btn:hover {
+    background: rgba(60,45,25,0.85);
+    border-color: #c8a870;
+    color: #fff;
+    transform: translateX(6px);
+    box-shadow: 0 0 20px rgba(180,120,60,0.25);
+  }
+  .choice-btn:hover::before { opacity: 1; }
+
+  #continue-hint {
+    position: absolute;
+    bottom: 10px;
+    right: 20px;
+    font-size: 12px;
+    color: rgba(180,160,120,0.5);
+    letter-spacing: 2px;
+    animation: blink 1.6s infinite;
+  }
+  @keyframes blink { 50% { opacity: 0.2; } }
+
+  .glitch #text { animation: glitch 0.3s infinite; }
+  @keyframes glitch {
+    0%,100% { text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
+    50% { text-shadow: 2px 0 #a03030, -2px 0 #3030a0; }
+  }
+
+  #title-screen {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, #1a1510 0%, #000 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    text-align: center;
+    padding: 40px;
+  }
+  #title-screen h1 {
+    font-size: 48px;
+    color: #d4a868;
+    letter-spacing: 6px;
+    margin-bottom: 20px;
+    text-shadow: 0 0 30px rgba(212,168,104,0.5);
+    font-weight: normal;
+  }
+  #title-screen p {
+    font-size: 18px;
+    color: #a09070;
+    font-style: italic;
+    margin-bottom: 50px;
+    max-width: 600px;
+    line-height: 1.6;
+  }
+  #start-btn {
+    background: transparent;
+    border: 1px solid #a08050;
+    color: #d4a868;
+    padding: 14px 40px;
+    font-family: inherit;
+    font-size: 18px;
+    letter-spacing: 4px;
+    cursor: pointer;
+    transition: all 0.3s;
+    text-transform: uppercase;
+  }
+  #start-btn:hover {
+    background: rgba(160,128,80,0.15);
+    box-shadow: 0 0 30px rgba(212,168,104,0.3);
+  }
+
+  .ending-title {
+    font-size: 22px;
+    color: #d4a868;
+    letter-spacing: 4px;
+    margin-bottom: 14px;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+<div id="game">
+  <div id="background"></div>
+
+  <div id="title-screen">
+    <h1>Скрипторий Забытых Имён</h1>
+    <p>«Каждое стёртое воспоминание — это капля чернил в море, которое помнит всё.»</p>
+    <button id="start-btn">Начать</button>
+  </div>
+
+  <div id="resonance-bar" style="display:none;">
+    <div id="resonance-label">Чернильный Резонанс</div>
+    <div id="resonance-track"><div id="resonance-fill"></div></div>
+    <div id="resonance-value">50%</div>
+  </div>
+
+  <div id="portrait"></div>
+
+  <div id="dialogue-box" style="display:none;">
+    <div id="speaker"></div>
+    <div id="text"></div>
+    <div id="choices"></div>
+    <div id="continue-hint" style="display:none;">▼ нажмите, чтобы продолжить</div>
+  </div>
+</div>
+
+<script>
+// ============ ДАННЫЕ СЦЕН ============
+const scenes = {
+  start: {
+    bg: 'scriptorium', img: 'images/scriptorium.png',
+    speaker: 'Рассказчик',
+    text: 'Скрипторий пахнет пылью, старым пергаментом и чем-то ещё — сладковатым запахом стёртых имён. Вы — Элиас, Цензор. Сегодня Архивариус Велес вызвал вас в кабинет.',
+    next: 'veles_meet'
+  },
+  veles_meet: {
+    bg: 'scriptorium', img: 'images/scriptorium.png',
+    portrait: 'images/veles.png',
+    speaker: 'Архивариус Велес',
+    text: '«Элиас, мой верный ученик. В Книге Мира появилась аномалия — некая Лира. Её не должно существовать. Ты стёр её три года назад. Найди её. Сотри окончательно.»',
+    choices: [
+      { text: 'Принять задание без вопросов', resonance: -15, next: 'city_search' },
+      { text: 'Спросить, почему она всё ещё существует', resonance: +10, next: 'veles_question' },
+      { text: 'Отказаться и уйти', resonance: +20, next: 'refuse_veles' }
+    ]
+  },
+  veles_question: {
+    bg: 'scriptorium', img: 'images/scriptorium.png',
+    portrait: 'images/veles.png',
+    speaker: 'Архивариус Велес',
+    text: '«Не задавай глупых вопросов. Иногда чернила не впитываются в бумагу. Иногда бумага помнит то, что мы хотим забыть. Иди. И не возвращайся без неё.»',
+    next: 'city_search'
+  },
+  refuse_veles: {
+    bg: 'scriptorium', img: 'images/scriptorium.png',
+    portrait: 'images/veles.png',
+    speaker: 'Архивариус Велес',
+    text: '«...Ты становишься опасен, Элиас. Иди. Но помни: Скрипторий не прощает предательства. Он забирает предателей первыми.»',
+    next: 'city_search'
+  },
+  city_search: {
+    bg: 'grey_city', img: 'images/grey_city.png',
+    speaker: 'Рассказчик',
+    text: 'Серый Город встречает вас туманом и молчанием. Пустые бродят по улицам — люди, потерявшие слишком много. Вы ищете Лиру. И находите её в кафе «Полустанок».',
+    next: 'cafe_meet'
+  },
+  cafe_meet: {
+    bg: 'cafe', img: 'images/cafe.png',
+    portrait: 'images/lira.png',
+    speaker: 'Лира',
+    text: '«Ты пришёл за мной, Цензор? Я ждала. Три года я ждала. Знаешь, каково это — быть стёртой и всё ещё дышать? Видеть, как мир забывает тебя, но ты помнишь всё?»',
+    choices: [
+      { text: '«Прости меня. Я выполню приказ.»', resonance: -20, next: 'betray_lira' },
+      { text: '«Я не понимаю, как ты жива. Расскажи.»', resonance: +15, next: 'lira_story' },
+      { text: '«Пойдём со мной. Я спрячу тебя.»', resonance: +25, next: 'hide_lira' }
+    ]
+  },
+  lira_story: {
+    bg: 'cafe', img: 'images/cafe.png',
+    portrait: 'images/lira.png',
+    speaker: 'Лира',
+    text: '«Я живу, потому что кто-то помнит меня. Не Велес. Не ты. А люди, чью боль я когда-то разделила. Память — это нить. Пока есть хоть одна нить — я не исчезну. Пойдём в Зал Отражений. Там ты увидишь правду о Скриптории.»',
+    next: 'hall_choice'
+  },
+  betray_lira: {
+    bg: 'cafe', img: 'images/cafe.png',
+    portrait: 'images/lira.png',
+    speaker: 'Лира',
+    text: '«...Я знала. Я всегда знала, что ты вернёшься за мной. Что ж, Цензор. Делай, что должен. Но знай: каждый раз, стирая, ты стираешь и себя.»',
+    next: 'ink_sea_betray'
+  },
+  hide_lira: {
+    bg: 'cafe', img: 'images/cafe.png',
+    portrait: 'images/lira.png',
+    speaker: 'Лира',
+    text: '«Спрятать меня? От Велеса? От самого Скриптория? Ты либо безумец, либо впервые за долгие годы — живой. Идём. В Зал Отражений. Там есть путь, о котором Велес не знает.»',
+    next: 'hall_choice'
+  },
+  hall_choice: {
+    bg: 'hall', img: 'images/hall_of_reflections.png',
+    speaker: 'Рассказчик',
+    text: 'Зал Отражений. Тысячи кривых зеркал показывают жизни, которых не было. В одном из них вы видите себя — не Цензором, а просто человеком. Рядом — Лира. Вы смеётесь.',
+    choices: [
+      { text: 'Разбить зеркало. Это ложь.', resonance: -25, next: 'break_mirror' },
+      { text: 'Коснуться зеркала. Войти в отражение.', resonance: +30, next: 'enter_mirror' },
+      { text: 'Уничтожить Зал полностью.', resonance: +40, next: 'destroy_hall' }
+    ]
+  },
+  break_mirror: {
+    bg: 'hall', img: 'images/hall_of_reflections.png',
+    speaker: 'Элиас',
+    text: 'Зеркало разбивается. Осколки падают, как чёрные слёзы. Лира молчит. Вы возвращаетесь в Скрипторий — выполнять приказ.',
+    next: 'ink_sea_betray'
+  },
+  enter_mirror: {
+    bg: 'hall', img: 'images/hall_of_reflections.png',
+    portrait: 'images/lira.png',
+    speaker: 'Лира',
+    text: '«Видишь? Это не ложь. Это то, что могло быть. То, что Велес украл у нас. Если мы разорвём Книгу Мира здесь, в сердце Зала — все стёртые вернутся. Но Скрипторий падёт.»',
+    next: 'final_choice'
+  },
+  destroy_hall: {
+    bg: 'hall', img: 'images/hall_of_reflections.png',
+    speaker: 'Рассказчик',
+    text: 'Вы поджигаете Зал Отражений. Пламя — чёрное, чернильное. Все отражения сгорают. Велес больше не сможет использовать их. Но и пути назад тоже нет.',
+    next: 'final_choice'
+  },
+  final_choice: {
+    bg: 'ink_sea', img: 'images/ink_sea.png',
+    speaker: 'Архивариус Велес',
+    text: '«Ты зашёл слишком далеко, Элиас. У тебя есть последний выбор: вернись ко мне — и я сделаю тебя своим преемником. Или бросься в Чернильное Море — и пусть всё решится само.»',
+    choices: [
+      { text: 'Принять власть Велеса. Стать новым Архивариусом.', resonance: -40, next: 'ending_veles' },
+      { text: 'Прыгнуть в Чернильное Море с Лирой.', resonance: +50, next: 'ending_ink' },
+      { text: 'Написать в Книге новое имя — своё настоящее.', resonance: 0, next: 'ending_true' }
+    ]
+  },
+
+  // ===== КОНЦОВКИ =====
+  ending_veles: {
+    bg: 'scriptorium', img: 'images/scriptorium.png',
+    ending: true,
+    endingTitle: 'Концовка I: Новый Архивариус',
+    speaker: 'Рассказчик',
+    text: 'Лира исчезает. Как и должна была. Вы садитесь в кресло Велеса. Чернила послушны. Боль мира — под вашим пером. Вы больше не чувствуете ничего. И это — идеальное счастье.',
+    choices: [{ text: 'Начать заново', restart: true }]
+  },
+  ending_ink: {
+    bg: 'ink_sea', img: 'images/ink_sea.png',
+    ending: true,
+    endingTitle: 'Концовка II: Растворение',
+    speaker: 'Рассказчик',
+    text: 'Вы прыгаете. Чернильное Море принимает вас. Все стёртые воспоминания мира — ваши, Лиры, тысяч незнакомцев — сливаются воедино. Скрипторий тонет. Мир забывает всё. И это — тоже форма свободы.',
+    choices: [{ text: 'Начать заново', restart: true }]
+  },
+  ending_true: {
+    bg: 'hall', img: 'images/hall_of_reflections.png',
+    ending: true,
+    endingTitle: 'Истинная концовка: Возвращённое имя',
+    speaker: 'Рассказчик',
+    text: 'Вы пишете в Книге своё настоящее имя — то, которое стёр Велес много лет назад. Скрипторий содрогается. Лира возвращается. Пустые на улицах вспоминают себя. Мир снова учится болеть — и снова учится жить. Вы уходите из Скриптория, держа Лиру за руку. Впервые за долгие годы — свободными.',
+    choices: [{ text: 'Начать заново', restart: true }]
+  }
+};
+
+// ============ СОСТОЯНИЕ ИГРЫ ============
+let state = {
+  resonance: 50,
+  currentScene: null,
+  textQueue: null
+};
+
+// ============ DOM ============
+const $ = id => document.getElementById(id);
+const bg = $('background');
+const portrait = $('portrait');
+const speakerEl = $('speaker');
+const textEl = $('text');
+const choicesEl = $('choices');
+const resonanceFill = $('resonance-fill');
+const resonanceValue = $('resonance-value');
+const resonanceBar = $('resonance-bar');
+const dialogueBox = $('dialogue-box');
+const continueHint = $('continue-hint');
+const titleScreen = $('title-screen');
+const gameEl = $('game');
+
+// ============ ЗАГРУЗКА ФОНА ============
+function setBackground(scene) {
+  bg.className = 'bg-' + scene.bg;
+  if (scene.img) {
+    const img = new Image();
+    img.onload = () => { bg.style.backgroundImage = `url('${scene.img}')`; };
+    img.onerror = () => { bg.style.backgroundImage = ''; };
+    img.src = scene.img;
+  } else {
+    bg.style.backgroundImage = '';
+  }
+  // Глитч при высоком резонансе
+  if (state.resonance > 70) gameEl.classList.add('glitch');
+  else gameEl.classList.remove('glitch');
+}
+
+function setPortrait(src) {
+  if (!src) { portrait.classList.remove('visible'); return; }
+  const img = new Image();
+  img.onload = () => {
+    portrait.style.backgroundImage = `url('${src}')`;
+    portrait.classList.add('visible');
+  };
+  img.onerror = () => {
+    portrait.style.backgroundImage = '';
+    portrait.classList.add('visible');
+  };
+  img.src = src;
+}
+
+// ============ ОБНОВЛЕНИЕ РЕЗОНАНСА ============
+function updateResonance(delta) {
+  state.resonance = Math.max(0, Math.min(100, state.resonance + delta));
+  resonanceFill.style.width = state.resonance + '%';
+  resonanceValue.textContent = state.resonance + '%';
+  // Цветовая индикация
+  if (state.resonance < 30) resonanceFill.style.background = 'linear-gradient(90deg, #2a4a7a, #4a6a9a)';
+  else if (state.resonance > 70) resonanceFill.style.background = 'linear-gradient(90deg, #8a3a3a, #c05050)';
+  else resonanceFill.style.background = 'linear-gradient(90deg, #3a5a8a, #8a5a3a, #8a3a3a)';
+}
+
+// ============ ПЕЧАТЬ ТЕКСТА ============
+function typeText(text, callback) {
+  textEl.textContent = '';
+  let i = 0;
+  continueHint.style.display = 'none';
+  const interval = setInterval(() => {
+    if (i < text.length) {
+      textEl.textContent += text[i];
+      i++;
+    } else {
+      clearInterval(interval);
+      if (callback) callback();
+    }
+  }, 25);
+  // Пропуск по клику
+  const skip = () => {
+    clearInterval(interval);
+    textEl.textContent = text;
+    document.removeEventListener('click', skip);
+    if (callback) callback();
+  };
+  setTimeout(() => document.addEventListener('click', skip, { once: false }), 100);
+  window._skipTyping = skip;
+}
+
+// ============ ПОКАЗ СЦЕНЫ ============
+function showScene(id) {
+  const scene = scenes[id];
+  if (!scene) return;
+  state.currentScene = id;
+
+  setBackground(scene);
+  setPortrait(scene.portrait);
+  speakerEl.textContent = scene.speaker || '';
+  choicesEl.innerHTML = '';
+
+  // Если это концовка — показываем заголовок
+  if (scene.ending) {
+    const title = document.createElement('div');
+    title.className = 'ending-title';
+    title.textContent = scene.endingTitle;
+    choicesEl.appendChild(title);
+  }
+
+  typeText(scene.text, () => {
+    if (scene.choices) {
+      scene.choices.forEach(choice => {
+        const btn = document.createElement('button');
+        btn.className = 'choice-btn';
+        btn.textContent = choice.text;
+        btn.onclick = () => {
+          if (choice.restart) {
+            state.resonance = 50;
+            updateResonance(0);
+            showScene('start');
+            return;
+          }
+          if (typeof choice.resonance === 'number') updateResonance(choice.resonance);
+          showScene(choice.next);
+        };
+        choicesEl.appendChild(btn);
+      });
+    } else if (scene.next) {
+      continueHint.style.display = 'block';
+      const advance = () => {
+        document.removeEventListener('click', advance);
+        showScene(scene.next);
+      };
+      setTimeout(() => document.addEventListener('click', advance, { once: true }), 200);
+    }
+  });
+}
+
+// ============ СТАРТ ============
+$('start-btn').onclick = () => {
+  titleScreen.style.display = 'none';
+  resonanceBar.style.display = 'flex';
+  dialogueBox.style.display = 'block';
+  updateResonance(0);
+  showScene('start');
+};
+</script>
+</body>
+</html>
